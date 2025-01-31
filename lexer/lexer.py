@@ -1,7 +1,7 @@
 from errorHandler import report_lexical_error
 from .constants import *
 from .state import *
-from .symbolTable import update_symbol_table
+from symbolTable import SymbolTable
 
 
 class Token:
@@ -12,10 +12,11 @@ class Token:
 
 
 class Lexer:
-    def __init__(self, text):
+    def __init__(self, text, symbol_table: SymbolTable):
         self.text = text
         self.line_number = 1
         self.tokens = []
+        self.symbol_table = symbol_table
 
     def __get_next_state(self, current_state, char):
         transition_type = TransitionTypes.get_transition_type(char)
@@ -72,7 +73,8 @@ class Lexer:
         token = Token(token_value, token_type, self.line_number)
 
         self.text = self.text[index:]
-        update_symbol_table(token.type, token.lexeme)
+        # add_to_symbol_table(token.type, token.lexeme)
+        self.symbol_table.add_to_symbol_table(token.type, token.lexeme)
         self.tokens.append(token)
 
         # return Token(token_value, token_type, self.line_number)

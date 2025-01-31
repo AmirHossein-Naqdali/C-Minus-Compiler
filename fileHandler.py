@@ -66,3 +66,12 @@ def write_parse_tree(root_node):
 
     with open('parse_tree.txt', 'w', encoding='utf-8') as file:
         file.write(text)
+
+
+def write_TAC(codes):
+    text = ''
+    for i, code in enumerate(codes):
+        text += f'{i}\t{code}\n'
+
+    with open('output.txt', 'w') as file:
+        file.write(text)

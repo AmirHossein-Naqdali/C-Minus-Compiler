@@ -1,5 +1,6 @@
 from anytree import Node
 
+from code_generator import CodeGenerator
 from errorHandler import report_syntax_error
 from lexer.lexer import Lexer
 from .grammar import *
@@ -7,9 +8,10 @@ from .parsing_table import *
 
 
 class Parser:
-    def __init__(self, lexer: Lexer):
-        self.__current_token = None
+    def __init__(self, lexer: Lexer, code_generator: CodeGenerator):
         self.lexer = lexer
+        self.code_generator = code_generator
+        self.__current_token = None
         self.__lookahead = None
         self.node = Node(start_symbol.name)
         self.stack = [start_symbol]
@@ -29,7 +31,10 @@ class Parser:
         self.__get_token()
         while self.stack and is_running:
             top = self.stack[-1]
-            if type(top) is Terminals:
+            if type(top) is ActionSymbols:
+                self.code_generator.code_gen(top, self.__current_token)
+                self.stack.pop()
+            elif type(top) is Terminals:
                 if top == Terminals.EPSILON:
                     self.stack.pop()
                     node = nodes.pop(0)
@@ -64,9 +69,12 @@ class Parser:
                     new_node = nodes.pop(0)
                     new_nodes = []
                     for variable in action:
+                        if type(variable) is not Terminals and type(variable) is not NonTerminals:
+                            continue
                         new_nodes.append(Node(variable.name, parent=new_node))
                     nodes = new_nodes + nodes
                     self.stack.pop()
                     self.stack += action[::-1]
         if is_running:
             Node(Terminals.DOLLAR.content, self.node)
+        # self.code_generator.print_pb()
