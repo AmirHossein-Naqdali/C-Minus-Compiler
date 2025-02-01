@@ -25,3 +25,4 @@ parser.parse()
 # write_syntax_errors(syntax_errors)
 
 write_TAC(parser.code_generator.program_block)
+write_semantic_errors(semantic_errors)

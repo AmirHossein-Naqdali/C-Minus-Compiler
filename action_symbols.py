@@ -4,7 +4,6 @@ from enum import Enum
 class ActionSymbols(Enum):
     SET_DECLARING = 0
     PUSH = 1
-    # SAVE_TYPE = 1
     UPDATE_TYPE = 2
     UPDATE_VAR_ATTRIBUTES = 3
     UPDATE_ARR_ATTRIBUTES = 4
@@ -33,3 +32,14 @@ class ActionSymbols(Enum):
     END_OF_PROGRAM = 30
     RETURN = 31
     RETURN_VALUE = 32
+    TYPE_POP = 33
+    START_FUNCTION = 34
+
+
+class CheckSymbols(Enum):
+    ID_IS_DEFINED = 0
+    VAR_ARR_IS_INT = 1
+    PARAMETER_NUMBER = 2
+    BREAK_IS_IN_LOOP = 3
+    TYPE_MATCH = 4
+    ARG_TYPE = 5

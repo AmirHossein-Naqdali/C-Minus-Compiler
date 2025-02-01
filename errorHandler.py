@@ -1,5 +1,6 @@
 lexical_errors = {}
 syntax_errors = {}
+semantic_errors = {}
 
 
 def report_lexical_error(error_line, dumped_text, error_message):
@@ -14,3 +15,8 @@ def report_syntax_error(error_line, error_message):
     if syntax_errors.get(error_line) is None:
         syntax_errors[error_line] = []
     syntax_errors[error_line].append(error_message)
+
+
+def report_semantic_error(error_line, error_message):
+    if semantic_errors.get(error_line) is None:
+        semantic_errors[error_line] = error_message

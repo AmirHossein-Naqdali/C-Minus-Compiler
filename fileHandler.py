@@ -72,6 +72,19 @@ def write_TAC(codes):
     text = ''
     for i, code in enumerate(codes):
         text += f'{i}\t{code}\n'
+    if not text:
+        text = 'The output code has not been generated.\n'
 
     with open('output.txt', 'w') as file:
+        file.write(text)
+
+
+def write_semantic_errors(errors):
+    text = ''
+    for error_line in sorted(errors.keys()):
+        text = text + f'#{error_line} : Semantic Error! {errors[error_line]}\n'
+    if not text:
+        text = 'The input program is semantically correct.\n'
+
+    with open('semantic_errors.txt', 'w') as file:
         file.write(text)

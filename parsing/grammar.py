@@ -1,4 +1,4 @@
-from action_symbols import ActionSymbols
+from action_symbols import ActionSymbols, CheckSymbols
 from .nonterminals import NonTerminals
 from .terminals import Terminals
 
@@ -19,11 +19,11 @@ productions = {
         [NonTerminals.FUN_DECLARATION_PRIME],
         [NonTerminals.VAR_DECLARATION_PRIME]],
     NonTerminals.VAR_DECLARATION_PRIME: [
-        [ActionSymbols.UPDATE_VAR_ATTRIBUTES, Terminals.SEMICOLON],
-        [Terminals.BRACKET_OPEN, ActionSymbols.UPDATE_ARR_ATTRIBUTES, Terminals.NUM, Terminals.BRACKET_CLOSE,
-         Terminals.SEMICOLON]],
+        [ActionSymbols.UPDATE_VAR_ATTRIBUTES, CheckSymbols.VAR_ARR_IS_INT, Terminals.SEMICOLON],
+        [Terminals.BRACKET_OPEN, ActionSymbols.UPDATE_ARR_ATTRIBUTES, CheckSymbols.VAR_ARR_IS_INT, Terminals.NUM,
+         Terminals.BRACKET_CLOSE, Terminals.SEMICOLON]],
     NonTerminals.FUN_DECLARATION_PRIME: [
-        [ActionSymbols.START_SCOPE, Terminals.PARENTHESIS_OPEN, NonTerminals.PARAMS, Terminals.PARENTHESIS_CLOSE,
+        [ActionSymbols.START_FUNCTION, Terminals.PARENTHESIS_OPEN, NonTerminals.PARAMS, Terminals.PARENTHESIS_CLOSE,
          ActionSymbols.UPDATE_FUNC_ATTRIBUTES, NonTerminals.COMPOUND_STMT, ActionSymbols.RETURN_AT_THE_END_OF_FUNCTION,
          ActionSymbols.END_SCOPE]],
     NonTerminals.TYPE_SPECIFIER: [
@@ -39,10 +39,12 @@ productions = {
     NonTerminals.PARAM: [
         [NonTerminals.DECLARATION_INITIAL, NonTerminals.PARAM_PRIME]],
     NonTerminals.PARAM_PRIME: [
-        [ActionSymbols.UPDATE_ARR_ATTRIBUTES, Terminals.BRACKET_OPEN, Terminals.BRACKET_CLOSE],
-        [ActionSymbols.UPDATE_VAR_ATTRIBUTES, Terminals.EPSILON]],
+        [ActionSymbols.UPDATE_ARR_ATTRIBUTES, CheckSymbols.VAR_ARR_IS_INT, Terminals.BRACKET_OPEN,
+         Terminals.BRACKET_CLOSE],
+        [ActionSymbols.UPDATE_VAR_ATTRIBUTES, CheckSymbols.VAR_ARR_IS_INT, Terminals.EPSILON]],
     NonTerminals.COMPOUND_STMT: [
-        [Terminals.BRACE_OPEN, NonTerminals.DECLARATION_LIST, NonTerminals.STATEMENT_LIST, Terminals.BRACE_CLOSE]],
+        [ActionSymbols.START_SCOPE, Terminals.BRACE_OPEN, NonTerminals.DECLARATION_LIST, NonTerminals.STATEMENT_LIST,
+         Terminals.BRACE_CLOSE, ActionSymbols.END_SCOPE]],
     NonTerminals.STATEMENT_LIST: [
         [NonTerminals.STATEMENT, NonTerminals.STATEMENT_LIST],
         [Terminals.EPSILON]],
@@ -53,40 +55,43 @@ productions = {
         [NonTerminals.ITERATION_STMT],
         [NonTerminals.RETURN_STMT]],
     NonTerminals.EXPRESSION_STMT: [
-        [NonTerminals.EXPRESSION, ActionSymbols.POP, Terminals.SEMICOLON],
-        [Terminals.BREAK, ActionSymbols.BREAK, Terminals.SEMICOLON],
+        [NonTerminals.EXPRESSION, ActionSymbols.TYPE_POP, ActionSymbols.POP, Terminals.SEMICOLON],
+        [CheckSymbols.BREAK_IS_IN_LOOP, Terminals.BREAK, ActionSymbols.BREAK, Terminals.SEMICOLON],
         [Terminals.SEMICOLON]],
     NonTerminals.SELECTION_STMT: [
-        [Terminals.IF, Terminals.PARENTHESIS_OPEN, NonTerminals.EXPRESSION, Terminals.PARENTHESIS_CLOSE,
+        [Terminals.IF, Terminals.PARENTHESIS_OPEN, NonTerminals.EXPRESSION, ActionSymbols.TYPE_POP,
+         Terminals.PARENTHESIS_CLOSE,
          ActionSymbols.SAVE, NonTerminals.STATEMENT, NonTerminals.ELSE_STMT]],
     NonTerminals.ELSE_STMT: [
         [ActionSymbols.JPF, Terminals.ENDIF],
         [Terminals.ELSE, ActionSymbols.JPF_SAVE, NonTerminals.STATEMENT, ActionSymbols.JP, Terminals.ENDIF]],
     NonTerminals.ITERATION_STMT: [
         [Terminals.WHILE, ActionSymbols.SAVE, ActionSymbols.LABEL, Terminals.PARENTHESIS_OPEN, NonTerminals.EXPRESSION,
-         Terminals.PARENTHESIS_CLOSE, ActionSymbols.WHILE_SAVE, NonTerminals.STATEMENT, ActionSymbols.WHILE]],
+         ActionSymbols.TYPE_POP, Terminals.PARENTHESIS_CLOSE, ActionSymbols.WHILE_SAVE, NonTerminals.STATEMENT,
+         ActionSymbols.WHILE]],
     NonTerminals.RETURN_STMT: [
         [Terminals.RETURN, NonTerminals.RETURN_STMT_PRIME]],
     NonTerminals.RETURN_STMT_PRIME: [
         [ActionSymbols.RETURN, Terminals.SEMICOLON],
-        [NonTerminals.EXPRESSION, ActionSymbols.RETURN_VALUE, Terminals.SEMICOLON]],
+        [NonTerminals.EXPRESSION, ActionSymbols.RETURN_VALUE, ActionSymbols.TYPE_POP, Terminals.SEMICOLON]],
     NonTerminals.EXPRESSION: [
         [NonTerminals.SIMPLE_EXPRESSION_ZEGOND],
-        [ActionSymbols.PUSH_ID, Terminals.ID, NonTerminals.B]],
+        [CheckSymbols.ID_IS_DEFINED, ActionSymbols.PUSH_ID, Terminals.ID, NonTerminals.B]],
     NonTerminals.B: [
-        [Terminals.ASSIGN, NonTerminals.EXPRESSION, ActionSymbols.ASSIGN],
+        [Terminals.ASSIGN, NonTerminals.EXPRESSION, CheckSymbols.TYPE_MATCH, ActionSymbols.ASSIGN],
         [Terminals.BRACKET_OPEN, NonTerminals.EXPRESSION, Terminals.BRACKET_CLOSE, ActionSymbols.UPDATE_ID,
          NonTerminals.H],
         [NonTerminals.SIMPLE_EXPRESSION_PRIME]],
     NonTerminals.H: [
-        [Terminals.ASSIGN, NonTerminals.EXPRESSION, ActionSymbols.ASSIGN],
+        [Terminals.ASSIGN, NonTerminals.EXPRESSION, CheckSymbols.TYPE_MATCH, ActionSymbols.ASSIGN],
         [NonTerminals.G, NonTerminals.D, NonTerminals.C]],
     NonTerminals.SIMPLE_EXPRESSION_ZEGOND: [
         [NonTerminals.ADDITIVE_EXPRESSION_ZEGOND, NonTerminals.C]],
     NonTerminals.SIMPLE_EXPRESSION_PRIME: [
         [NonTerminals.ADDITIVE_EXPRESSION_PRIME, NonTerminals.C]],
     NonTerminals.C: [
-        [ActionSymbols.PUSH, NonTerminals.RELOP, NonTerminals.ADDITIVE_EXPRESSION, ActionSymbols.OPERATION],
+        [ActionSymbols.PUSH, NonTerminals.RELOP, NonTerminals.ADDITIVE_EXPRESSION, CheckSymbols.TYPE_MATCH,
+         ActionSymbols.OPERATION],
         [Terminals.EPSILON]],
     NonTerminals.RELOP: [
         [Terminals.LESS_THAN],
@@ -98,7 +103,8 @@ productions = {
     NonTerminals.ADDITIVE_EXPRESSION_ZEGOND: [
         [NonTerminals.TERM_ZEGOND, NonTerminals.D]],
     NonTerminals.D: [
-        [ActionSymbols.PUSH, NonTerminals.ADDOP, NonTerminals.TERM, ActionSymbols.OPERATION, NonTerminals.D],
+        [ActionSymbols.PUSH, NonTerminals.ADDOP, NonTerminals.TERM, CheckSymbols.TYPE_MATCH, ActionSymbols.OPERATION,
+         NonTerminals.D],
         [Terminals.EPSILON]],
     NonTerminals.ADDOP: [
         [Terminals.PLUS],
@@ -110,7 +116,8 @@ productions = {
     NonTerminals.TERM_ZEGOND: [
         [NonTerminals.SIGNED_FACTOR_ZEGOND, NonTerminals.G]],
     NonTerminals.G: [
-        [ActionSymbols.PUSH, NonTerminals.MULOP, NonTerminals.SIGNED_FACTOR, ActionSymbols.OPERATION, NonTerminals.G],
+        [ActionSymbols.PUSH, NonTerminals.MULOP, NonTerminals.SIGNED_FACTOR, CheckSymbols.TYPE_MATCH,
+         ActionSymbols.OPERATION, NonTerminals.G],
         [Terminals.EPSILON]],
     NonTerminals.MULOP: [
         [Terminals.STAR],
@@ -127,7 +134,7 @@ productions = {
         [NonTerminals.FACTOR_ZEGOND]],
     NonTerminals.FACTOR: [
         [Terminals.PARENTHESIS_OPEN, NonTerminals.EXPRESSION, Terminals.PARENTHESIS_CLOSE],
-        [ActionSymbols.PUSH_ID, Terminals.ID, NonTerminals.VAR_CALL_PRIME],
+        [CheckSymbols.ID_IS_DEFINED, ActionSymbols.PUSH_ID, Terminals.ID, NonTerminals.VAR_CALL_PRIME],
         [ActionSymbols.SAVE_NUM, Terminals.NUM]],
     NonTerminals.VAR_CALL_PRIME: [
         [Terminals.PARENTHESIS_OPEN, NonTerminals.ARGS, Terminals.PARENTHESIS_CLOSE, ActionSymbols.CALL],
@@ -145,16 +152,19 @@ productions = {
         [ActionSymbols.PUSH_ZERO, NonTerminals.ARG_LIST],
         [Terminals.EPSILON]],
     NonTerminals.ARG_LIST: [
-        [NonTerminals.EXPRESSION, ActionSymbols.NEW_ARG, NonTerminals.ARG_LIST_PRIME]],
+        [CheckSymbols.PARAMETER_NUMBER, NonTerminals.EXPRESSION, CheckSymbols.ARG_TYPE, ActionSymbols.NEW_ARG,
+         NonTerminals.ARG_LIST_PRIME]],
     NonTerminals.ARG_LIST_PRIME: [
-        [Terminals.COMMA, NonTerminals.EXPRESSION, ActionSymbols.NEW_ARG, NonTerminals.ARG_LIST_PRIME],
+        [Terminals.COMMA, CheckSymbols.PARAMETER_NUMBER, NonTerminals.EXPRESSION, CheckSymbols.ARG_TYPE,
+         ActionSymbols.NEW_ARG,
+         NonTerminals.ARG_LIST_PRIME],
         [ActionSymbols.POP, Terminals.EPSILON]]}
 
 
 def first(statement):
     first_set = set()
     for i, state in enumerate(statement):
-        if type(state) is ActionSymbols:
+        if type(state) is not Terminals and type(state) is not NonTerminals:
             continue
         if type(state) is NonTerminals:
             s = set(state.first)

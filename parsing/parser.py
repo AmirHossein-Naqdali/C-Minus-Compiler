@@ -34,6 +34,9 @@ class Parser:
             if type(top) is ActionSymbols:
                 self.code_generator.code_gen(top, self.__current_token)
                 self.stack.pop()
+            elif type(top) is CheckSymbols:
+                self.code_generator.semantic_check(top, self.__current_token)
+                self.stack.pop()
             elif type(top) is Terminals:
                 if top == Terminals.EPSILON:
                     self.stack.pop()
@@ -77,4 +80,5 @@ class Parser:
                     self.stack += action[::-1]
         if is_running:
             Node(Terminals.DOLLAR.content, self.node)
-        # self.code_generator.print_pb()
+        if self.code_generator.is_erroneous:
+            self.code_generator.program_block = []

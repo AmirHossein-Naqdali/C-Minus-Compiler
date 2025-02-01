@@ -21,6 +21,7 @@ class SymbolTable:
         self.table = [[]]
         self.is_declaring = False
         self.current_address = 100
+        self.all_symbols = {}
 
     def add_to_symbol_table(self, token_type, token_string):
         if token_type != 'ID' or not self.is_declaring:
@@ -39,6 +40,10 @@ class SymbolTable:
         symbol = self.table[-1][-1]
         symbol.type = type
 
+    def get_last_symbol(self):
+        symbol = self.table[-1][-1]
+        return symbol
+
     def update_last_symbol(self, is_array=False, size=0):
         symbol = self.table[-1][-1]
         symbol.is_array = is_array
@@ -48,6 +53,7 @@ class SymbolTable:
             self.current_address += 4
         else:
             self.current_address += size * 4
+        self.all_symbols[symbol.address] = symbol
         return symbol
 
     def update_last_function(self):
@@ -71,12 +77,16 @@ class SymbolTable:
                 print(f'\t{sym}')
         print('end print')
 
-    def find_symbol(self, lexeme):
+    def find_symbol_by_lexeme(self, lexeme):
         for scope in reversed(self.table):
             for symbol in reversed(scope):
                 if symbol.lexeme == lexeme:
                     return symbol
         return None
+
+    def find_symbol_by_address(self, address):
+        symbol = self.all_symbols.get(address, None)
+        return symbol
 
     def last_used_address(self):
         return self.current_address - 4
