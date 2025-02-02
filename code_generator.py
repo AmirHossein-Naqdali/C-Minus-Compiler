@@ -29,6 +29,20 @@ class CodeGenerator:
         for _ in range(num):
             self.semantic_stack.pop()
 
+    def is_function_output(self, stack_index, pb_index=None):
+        if self.semantic_stack[stack_index] != '@1000':
+            return False
+        else:
+            new_address = self.get_temp()
+            if not pb_index:
+                self.program_block.append(f'(ASSIGN, @1000, {new_address}, )')
+                self.program_block.append(f'(SUB, 1000, #4, 1000)')
+            else:
+                self.program_block.insert(pb_index, f'(ASSIGN, @1000, {new_address}, )')
+                self.program_block.insert(pb_index + 1, f'(SUB, 1000, #4, 1000)')
+            self.semantic_stack[stack_index] = new_address
+            return True
+
     def semantic_check(self, check_symbol: CheckSymbols, current_token: Token):
         if check_symbol == CheckSymbols.ID_IS_DEFINED:
             symbol = self.symbol_table.find_symbol_by_lexeme(current_token.lexeme)
@@ -116,6 +130,7 @@ class CodeGenerator:
             function_symbol.code_beginning = len(self.program_block)
             self.call_stack.append(function_symbol)
             if function_symbol.lexeme == 'main':
+                self.program_block.append(f'(ASSIGN, #1000, 1000, )')
                 for addr in range(100, self.symbol_table.last_used_address() + 4, 4):
                     self.program_block.append(f'(ASSIGN, #0, {addr}, )')
                 self.semantic_stack.append(len(self.program_block))
@@ -127,6 +142,7 @@ class CodeGenerator:
             self.semantic_stack.append(len(self.program_block))
             self.program_block.append('')
         elif action_symbol == ActionSymbols.WHILE_SAVE:
+            self.is_function_output(-1)
             temp_addr = self.get_temp()
             self.jump_stack.append(temp_addr)
             self.program_block.append(f'(JPF, {self.semantic_stack[-1]}, @{temp_addr},)')
@@ -139,7 +155,10 @@ class CodeGenerator:
             self.semantic_stack_pop(2)
         elif action_symbol == ActionSymbols.JPF_SAVE:
             index = len(self.program_block)
-            self.program_block[self.semantic_stack[-1]] = f'(JPF, {self.semantic_stack[-2]}, {index + 1},)'
+            if self.is_function_output(-2, self.semantic_stack[-1]):
+                self.program_block[self.semantic_stack[-1] + 2] = f'(JPF, {self.semantic_stack[-2]}, {index + 3},)'
+            else:
+                self.program_block[self.semantic_stack[-1]] = f'(JPF, {self.semantic_stack[-2]}, {index + 1},)'
             self.semantic_stack_pop(2)
             self.semantic_stack.append(len(self.program_block))
             self.program_block.append('')
@@ -149,7 +168,10 @@ class CodeGenerator:
             self.semantic_stack_pop(1)
         elif action_symbol == ActionSymbols.JPF:
             index = len(self.program_block)
-            self.program_block[self.semantic_stack[-1]] = f'(JPF, {self.semantic_stack[-2]}, {index},)'
+            if self.is_function_output(-2, self.semantic_stack[-1]):
+                self.program_block[self.semantic_stack[-1] + 2] = f'(JPF, {self.semantic_stack[-2]}, {index + 2},)'
+            else:
+                self.program_block[self.semantic_stack[-1]] = f'(JPF, {self.semantic_stack[-2]}, {index},)'
             self.semantic_stack_pop(2)
         elif action_symbol == ActionSymbols.PUSH_ID:
             symbol = self.symbol_table.find_symbol_by_lexeme(current_token.lexeme)
@@ -161,13 +183,19 @@ class CodeGenerator:
                 self.call_stack.append(symbol)
                 addr = symbol.first_address
                 for _ in range(symbol.size):
-                    temp_addr = self.get_temp()
-                    self.program_block.append(f'(ASSIGN, {addr}, {temp_addr}, )')
-                    self.semantic_stack.append(temp_addr)
+                    self.program_block.append(f'(ADD, 1000, #4, 1000)')
+                    self.program_block.append(f'(ASSIGN, {addr}, @1000, )')
                     addr += 4
-                temp_addr = self.get_temp()
-                self.program_block.append(f'(ASSIGN, 500, {temp_addr}, )')
-                self.semantic_stack.append(temp_addr)
+                self.program_block.append(f'(ADD, 1000, #4, 1000)')
+                self.program_block.append(f'(ASSIGN, 500, @1000, )')
+
+                for item in reversed(self.semantic_stack):
+                    if type(item) is int and item >= 500:
+                        self.program_block.append(f'(ADD, 1000, #4, 1000)')
+                        self.program_block.append(f'(ASSIGN, {item}, @1000, )')
+                    if type(item) is str and item[0] == '@' and int(item[1:]) >= 500:
+                        self.program_block.append(f'(ADD, 1000, #4, 1000)')
+                        self.program_block.append(f'(ASSIGN, {item[1:]}, @1000, )')
                 self.type_stack.append(symbol.type)
             else:
                 self.semantic_stack.append(symbol.address)
@@ -176,15 +204,23 @@ class CodeGenerator:
                 else:
                     self.type_stack.append(symbol.type)
         elif action_symbol == ActionSymbols.ASSIGN:
+            self.is_function_output(-2)
+            self.is_function_output(-1)
             self.program_block.append(f'(ASSIGN, {self.semantic_stack[-1]}, {self.semantic_stack[-2]}, )')
             self.semantic_stack.pop(-2)
             self.type_stack.pop()
         elif action_symbol == ActionSymbols.POP:
+            if self.semantic_stack[-1] == '@1000':
+                self.program_block.append(f'(SUB, 1000, #4, 1000)')
+
             self.semantic_stack_pop()
         elif action_symbol == ActionSymbols.UPDATE_ID:
             temp_addr = self.get_temp()
             self.program_block.append(f'(MULT, {self.semantic_stack[-1]}, #4, {temp_addr})')
-            self.program_block.append(f'(ADD, {self.semantic_stack[-2]}, {temp_addr}, {temp_addr})')
+            if self.semantic_stack[-2] in self.call_stack[0].parameters:
+                self.program_block.append(f'(ADD, {self.semantic_stack[-2]}, {temp_addr}, {temp_addr})')
+            else:
+                self.program_block.append(f'(ADD, #{self.semantic_stack[-2]}, {temp_addr}, {temp_addr})')
             self.semantic_stack_pop(2)
             self.semantic_stack.append(f'@{temp_addr}')
             self.type_stack.pop()
@@ -193,12 +229,15 @@ class CodeGenerator:
         elif action_symbol == ActionSymbols.OPERATION:
             operator = self.semantic_stack.pop(-2)
             command = {'*': 'MULT', '/': 'DIV', '+': 'ADD', '-': 'SUB', '<': 'LT', '==': 'EQ'}[operator]
+            self.is_function_output(-1)
+            self.is_function_output(-2)
             temp_addr = self.get_temp()
             self.program_block.append(f'({command}, {self.semantic_stack[-2]}, {self.semantic_stack[-1]}, {temp_addr})')
             self.semantic_stack_pop(2)
             self.semantic_stack.append(temp_addr)
             self.type_stack.pop()
         elif action_symbol == ActionSymbols.NEG:
+            self.is_function_output(-1)
             self.program_block.append(f'(MULT, {self.semantic_stack[-1]}, #-1, {self.semantic_stack[-1]})')
         elif action_symbol == ActionSymbols.SAVE_NUM:
             self.semantic_stack.append(f'#{current_token.lexeme}')
@@ -217,7 +256,15 @@ class CodeGenerator:
                 parameter_index = self.semantic_stack.pop()
                 if parameter_index < len(self.call_stack[-1].parameters):
                     parameter_address = self.call_stack[-1].parameters[parameter_index]
-                    self.program_block.append(f'(ASSIGN, {parameter_value}, {parameter_address}, )')
+                    if self.symbol_table.find_symbol_by_address(parameter_address).is_array:
+                        if self.symbol_table.find_symbol_by_address(parameter_value) \
+                                and self.symbol_table.find_symbol_by_address(parameter_value).is_array \
+                                and parameter_value in self.call_stack[-1].parameters:
+                            self.program_block.append(f'(ASSIGN, {parameter_value}, {parameter_address}, )')
+                        else:
+                            self.program_block.append(f'(ASSIGN, #{parameter_value}, {parameter_address}, )')
+                    else:
+                        self.program_block.append(f'(ASSIGN, {parameter_value}, {parameter_address}, )')
                 self.semantic_stack.append(parameter_index + 1)
         elif action_symbol == ActionSymbols.CALL:
             caller = self.call_stack.pop()
@@ -229,23 +276,32 @@ class CodeGenerator:
                 index = len(self.program_block)
                 self.program_block.append(f'(ASSIGN, #{index + 2}, 500, )')
                 self.program_block.append(f'(JP, {caller.code_beginning}, , )')
-                previous_return_address = self.semantic_stack.pop()
-                self.program_block.append(f'(ASSIGN, {previous_return_address}, 500, )')
+
+                for item in self.semantic_stack:
+                    if type(item) is int and item >= 500:
+                        self.program_block.append(f'(ASSIGN, @1000, {item}, )')
+                        self.program_block.append(f'(SUB, 1000, #4, 1000)')
+                    if type(item) is str and item[0] == '@' and int(item[1:]) >= 500:
+                        self.program_block.append(f'(ASSIGN, @1000, {item[1:]}, )')
+                        self.program_block.append(f'(SUB, 1000, #4, 1000)')
+
+                self.program_block.append(f'(ASSIGN, @1000, 500, )')
+                self.program_block.append(f'(SUB, 1000, #4, 1000)')
                 last_address = caller.first_address + (caller.size - 1) * 4
                 addr = last_address
                 for _ in range(caller.size):
-                    saved_temp_addr = self.semantic_stack.pop()
-                    self.program_block.append(f'(ASSIGN, {saved_temp_addr}, {addr}, )')
+                    self.program_block.append(f'(ASSIGN, @1000, {addr}, )')
+                    self.program_block.append(f'(SUB, 1000, #4, 1000)')
                     addr -= 4
-                temp_addr = self.get_temp()
-                self.program_block.append(f'(ASSIGN, 504, {temp_addr}, )')
-                self.semantic_stack.append(temp_addr)
+                self.program_block.append(f'(ADD, 1000, #4, 1000)')
+                self.program_block.append(f'(ASSIGN, 504, @1000, )')
+                self.semantic_stack.append('@1000')
         elif action_symbol == ActionSymbols.RETURN_AT_THE_END_OF_FUNCTION:
             symbol = self.call_stack.pop()
             self.program_block.append(f'(ASSIGN, #0, 504, )')
             self.program_block.append(f'(JP, @500, , )')
             if symbol.lexeme == 'main':
-                number_of_initialized_parameters = int((symbol.first_address - 100) / 4)
+                number_of_initialized_parameters = int((symbol.first_address - 100) / 4) + 1
                 self.program_block[0] = f'(JP, {symbol.code_beginning - number_of_initialized_parameters}, , )'
         elif action_symbol == ActionSymbols.END_OF_PROGRAM:
             address = self.semantic_stack.pop()
